@@ -39,6 +39,7 @@ public class ProgramMonitorInstallationNodeView implements SwingInstallationNode
 	 */
 	private JButton ENABLE_MONITORING_BUTTON = new JButton();
 	private JButton DISABLE_MONITORING_BUTTON = new JButton();
+	private JButton update_planes_button = new JButton();
 	private JLabel DAEMON_STATUS_LABEL = new JLabel();
 	
 	/*****
@@ -80,7 +81,7 @@ public class ProgramMonitorInstallationNodeView implements SwingInstallationNode
 		}
 	}
 	
-	private void buildConfigurationTab(ProgramMonitorInstallationNodeContribution contribution) {
+	private void buildConfigurationTab(final ProgramMonitorInstallationNodeContribution contribution) {
 		CONFIGURATION_PANEL.setLayout(new BoxLayout(CONFIGURATION_PANEL, BoxLayout.Y_AXIS));
 		
 		CONFIGURATION_PANEL.add(createVerticalSpacer(15));
@@ -88,6 +89,20 @@ public class ProgramMonitorInstallationNodeView implements SwingInstallationNode
 		CONFIGURATION_PANEL.add(createVerticalSpacer(15));
 		CONFIGURATION_PANEL.add(createEnableDisableButtonBox(ENABLE_MONITORING_BUTTON, DISABLE_MONITORING_BUTTON, 
 				"Enable", "Disable", contribution));
+		CONFIGURATION_PANEL.add(update_planes_button);
+		
+		update_planes_button.setText("Update planes");
+		Dimension buttonSize = new Dimension(160, 50);
+		update_planes_button.setPreferredSize(buttonSize);
+		update_planes_button.setMaximumSize(buttonSize);
+		
+		update_planes_button.addActionListener(new ActionListener() {
+			@Override
+			public void actionPerformed(ActionEvent e) {
+				contribution.updatePlanes();
+			}
+		});		
+		
 		CONFIGURATION_PANEL.add(createVerticalSpacer(30));
 		CONFIGURATION_PANEL.add(createStatusLabelBox("Monitoring status: ", DAEMON_STATUS_LABEL));
 	}
