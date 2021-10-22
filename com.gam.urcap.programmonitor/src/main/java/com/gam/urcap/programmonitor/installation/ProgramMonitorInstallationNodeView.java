@@ -4,6 +4,8 @@ import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.text.DecimalFormat;
 
 import javax.swing.Box;
@@ -12,6 +14,7 @@ import javax.swing.JButton;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTabbedPane;
+import javax.swing.JTextField;
 import javax.swing.SwingConstants;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
@@ -20,6 +23,7 @@ import com.gam.urcap.programmonitor.monitoring.AxisExtremity;
 import com.gam.urcap.programmonitor.monitoring.ResultSet;
 import com.ur.urcap.api.contribution.ViewAPIProvider;
 import com.ur.urcap.api.contribution.installation.swing.SwingInstallationNodeView;
+import com.ur.urcap.api.domain.userinteraction.keyboard.KeyboardNumberInput;
 
 public class ProgramMonitorInstallationNodeView implements SwingInstallationNodeView<ProgramMonitorInstallationNodeContribution>{
 
@@ -42,6 +46,8 @@ public class ProgramMonitorInstallationNodeView implements SwingInstallationNode
 	private JButton update_planes_button = new JButton();
 	private JLabel DAEMON_STATUS_LABEL = new JLabel();
 	
+	private JTextField clearenceValue = new JTextField();
+	
 	/*****
 	 * Results panel UI components
 	 */
@@ -62,6 +68,24 @@ public class ProgramMonitorInstallationNodeView implements SwingInstallationNode
 		buildResultsTab(contribution);
 		
 		addChangeListenerToTabs(MASTER_TABS, contribution);
+	}
+
+	private Box createLabelInputField(String label, final JTextField inputField, String unit,MouseAdapter mouseAdapter)  {
+		Box horizontalBox = Box.createHorizontalBox();
+		horizontalBox.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+		JLabel jLabel = new JLabel(label);
+		JLabel jLabelUnit = new JLabel("["+unit+"]");
+		inputField.setFocusable(false);
+		inputField.setPreferredSize(new Dimension(160, 30));
+		inputField.setMaximumSize(inputField.getPreferredSize());
+		inputField.addMouseListener(mouseAdapter);
+
+		horizontalBox.add(jLabel);
+		horizontalBox.add(inputField);
+		horizontalBox.add(jLabelUnit);
+		
+		return horizontalBox;
 	}
 	
 	public void setMonitoringEnabledState(boolean enabled) {
@@ -89,10 +113,23 @@ public class ProgramMonitorInstallationNodeView implements SwingInstallationNode
 		CONFIGURATION_PANEL.add(createVerticalSpacer(15));
 		CONFIGURATION_PANEL.add(createEnableDisableButtonBox(ENABLE_MONITORING_BUTTON, DISABLE_MONITORING_BUTTON, 
 				"Enable", "Disable", contribution));
+		
+		CONFIGURATION_PANEL.add(createVerticalSpacer(30));
+		
+		clearenceValue.setHorizontalAlignment(JTextField.RIGHT);
+		CONFIGURATION_PANEL.add(createLabelInputField("clearence: ", clearenceValue, "mm", new MouseAdapter() {
+			@Override
+			public void mousePressed(MouseEvent e) {
+				KeyboardNumberInput<Double> keyboardInput = contribution.getKeyboardForPositiveNumber();
+				keyboardInput.show(clearenceValue, contribution.getCallbackForPositiveNumber());
+			}
+		}));	
+		CONFIGURATION_PANEL.add(createVerticalSpacer(10));
+		
 		CONFIGURATION_PANEL.add(update_planes_button);
 		
 		update_planes_button.setText("Update planes");
-		Dimension buttonSize = new Dimension(160, 50);
+		Dimension buttonSize = new Dimension(200, 80);
 		update_planes_button.setPreferredSize(buttonSize);
 		update_planes_button.setMaximumSize(buttonSize);
 		
@@ -103,9 +140,21 @@ public class ProgramMonitorInstallationNodeView implements SwingInstallationNode
 			}
 		});		
 		
+		
+		
+
+		
 		CONFIGURATION_PANEL.add(createVerticalSpacer(30));
 		CONFIGURATION_PANEL.add(createStatusLabelBox("Monitoring status: ", DAEMON_STATUS_LABEL));
 	}
+	
+	public void setClearenceValue(Double value) {
+		DecimalFormat df = new DecimalFormat("#");
+		df.setMaximumFractionDigits(1);
+		String stringValue = df.format((double) value);
+		clearenceValue.setText(stringValue);
+	}	
+	
 	
 	private void buildResultsTab(ProgramMonitorInstallationNodeContribution contribution) {
 		RESULTS_PANEL.setLayout(new BoxLayout(RESULTS_PANEL, BoxLayout.Y_AXIS));

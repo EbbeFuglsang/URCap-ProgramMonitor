@@ -38,7 +38,7 @@ public class ProgramMonitorInstallationNodeService implements SwingInstallationN
 	@Override
 	public ProgramMonitorInstallationNodeContribution createInstallationNode(InstallationAPIProvider apiProvider,
 			ProgramMonitorInstallationNodeView view, DataModel model, CreationContext context) {
-		return new ProgramMonitorInstallationNodeContribution(apiProvider, view, this.programMonitorDaemon);
+		return new ProgramMonitorInstallationNodeContribution(apiProvider, view, model, this.programMonitorDaemon);
 	}
 
 }

@@ -11,8 +11,12 @@ import com.gam.urcap.programmonitor.monitoring.ResultSet;
 import com.ur.urcap.api.contribution.DaemonContribution.State;
 import com.ur.urcap.api.contribution.InstallationNodeContribution;
 import com.ur.urcap.api.contribution.installation.InstallationAPIProvider;
+import com.ur.urcap.api.domain.data.DataModel;
 import com.ur.urcap.api.domain.feature.*;
 import com.ur.urcap.api.domain.script.ScriptWriter;
+import com.ur.urcap.api.domain.userinteraction.keyboard.KeyboardInputCallback;
+import com.ur.urcap.api.domain.userinteraction.keyboard.KeyboardInputFactory;
+import com.ur.urcap.api.domain.userinteraction.keyboard.KeyboardNumberInput;
 import com.ur.urcap.api.domain.value.PoseFactory;
 import com.ur.urcap.api.domain.value.simple.Length.Unit;
 import com.ur.urcap.api.domain.value.simple.*;
@@ -26,6 +30,8 @@ public class ProgramMonitorInstallationNodeContribution implements InstallationN
 	private final FeatureModel featureModel; 
 	private final FeatureContributionModel featureContributionModel;
 	private final PoseFactory poseFactory;
+	private final KeyboardInputFactory keyboardInputFactory;
+	private final DataModel model;
 	private boolean featuresGreated = false; 
 	
 	private static final String XMLRPC_HANDLE = "PROGRAM_MONITOR_DAEMON";
@@ -44,17 +50,38 @@ public class ProgramMonitorInstallationNodeContribution implements InstallationN
 	 * This variable indicates if Program Monitoring is set active for the time being. 
 	 */
 	private boolean ENABLE_PROGRAM_MONITORING = false;
+	private String CLEARENCE_VALUE = "clearence_value_key";
+	private String FEATURES_CREATED = "features_created_key";
+
 	
 	public ProgramMonitorInstallationNodeContribution(InstallationAPIProvider apiProvider,
-			ProgramMonitorInstallationNodeView view, 
+			ProgramMonitorInstallationNodeView view, DataModel model,
 			ProgramMonitorDaemonService programMonitorDaemon) {
 		this.apiProvider = apiProvider;
 		this.view = view;
+		this.model = model;
 		this.programMonitorDaemonService = programMonitorDaemon;
 		this.featureModel =apiProvider.getInstallationAPI().getFeatureModel();
 		this.featureContributionModel = apiProvider.getInstallationAPI().getFeatureContributionModel();
 		this.poseFactory = apiProvider.getInstallationAPI().getValueFactoryProvider().getPoseFactory();
+		this.keyboardInputFactory = apiProvider.getUserInterfaceAPI().getUserInteraction().getKeyboardInputFactory();
 	}
+	
+	public KeyboardNumberInput<Double> getKeyboardForPositiveNumber() {
+		KeyboardNumberInput<Double> keyboard = keyboardInputFactory.createPositiveDoubleKeypadInput();
+		keyboard.setInitialValue(0.0);
+		return keyboard;
+	}	
+	
+	public KeyboardInputCallback<Double> getCallbackForPositiveNumber() {
+		return new KeyboardInputCallback<Double>() {
+			@Override
+			public void onOk(Double value) {
+				model.set(CLEARENCE_VALUE, value);
+				view.setClearenceValue(value);
+			}
+		};
+	}	
 	
 	public void enableMonitoringChanged(boolean enabled) {
 		ENABLE_PROGRAM_MONITORING = enabled;
@@ -67,32 +94,35 @@ public class ProgramMonitorInstallationNodeContribution implements InstallationN
 	
 	public void updatePlanes() {
 		//FeatureContributionModel featureContributionModel = 
-		double xmin = monitorCommunicator.getResult(RESULT_TYPE.X_MIN);
-		double xmax = monitorCommunicator.getResult(RESULT_TYPE.X_MAX);
-		double ymin = monitorCommunicator.getResult(RESULT_TYPE.Y_MIN);
-		double ymax = monitorCommunicator.getResult(RESULT_TYPE.Y_MAX);
-		double zmin = monitorCommunicator.getResult(RESULT_TYPE.Z_MIN);
-		double zmax = monitorCommunicator.getResult(RESULT_TYPE.Z_MAX);
+		double clearence = model.get(CLEARENCE_VALUE, 0.0)/1000;
+		double xmin = monitorCommunicator.getResult(RESULT_TYPE.X_MIN)-clearence;
+		double xmax = monitorCommunicator.getResult(RESULT_TYPE.X_MAX)+clearence;
+		double ymin = monitorCommunicator.getResult(RESULT_TYPE.Y_MIN)-clearence;
+		double ymax = monitorCommunicator.getResult(RESULT_TYPE.Y_MAX)+clearence;
+		double zmin = monitorCommunicator.getResult(RESULT_TYPE.Z_MIN)-clearence;
+		double zmax = monitorCommunicator.getResult(RESULT_TYPE.Z_MAX)+clearence;
+
 		
+		boolean featureCreated = model.get(FEATURES_CREATED, false);
 		
 
-		if(this.featuresGreated == false) {
-			this.featureContributionModel.addFeature("safePlane1xMin", "X_min_plane", poseFactory.createPose(xmin, ymin, zmin, 0, Math.PI/2, 0, Length.Unit.M, Angle.Unit.RAD));
-			this.featureContributionModel.addFeature("safePlane1yMin", "Y_min_plane", poseFactory.createPose(xmin, ymin, zmin, -Math.PI/2, 0, 0, Length.Unit.M, Angle.Unit.RAD));
-			this.featureContributionModel.addFeature("safePlane1zMin", "Z_min_plane", poseFactory.createPose(xmin, ymin, zmin, 0, 0, 0, Length.Unit.M, Angle.Unit.RAD));
+		if(featureCreated == false) {
+			this.featureContributionModel.addFeature("safePlane1xMin", "X_min_plane", poseFactory.createPose(xmin, ymin, zmin, 0, -Math.PI/2, 0, Length.Unit.M, Angle.Unit.RAD));//Done orientation
+			this.featureContributionModel.addFeature("safePlane1yMin", "Y_min_plane", poseFactory.createPose(xmin, ymin, zmin, Math.PI/2, 0, 0, Length.Unit.M, Angle.Unit.RAD));
+			this.featureContributionModel.addFeature("safePlane1zMin", "Z_min_plane", poseFactory.createPose(xmin, ymin, zmin, Math.PI, 0, 0, Length.Unit.M, Angle.Unit.RAD)); //Done orientation
 			
-			this.featureContributionModel.addFeature("safePlane1xMax", "X_max_plane", poseFactory.createPose(xmax, ymax, zmax, 0, -Math.PI/2, 0, Length.Unit.M, Angle.Unit.RAD));
-			this.featureContributionModel.addFeature("safePlane1yMax", "Y_max_plane", poseFactory.createPose(xmin, ymin, zmax, Math.PI/2, 0, 0, Length.Unit.M, Angle.Unit.RAD));
-			this.featureContributionModel.addFeature("safePlane1zMax", "Z_max_plane", poseFactory.createPose(xmin, ymax, zmax, Math.PI, 0, 0, Length.Unit.M, Angle.Unit.RAD));			
-			this.featuresGreated = true;
+			this.featureContributionModel.addFeature("safePlane1xMax", "X_max_plane", poseFactory.createPose(xmax, ymax, zmax, 0, Math.PI/2, 0, Length.Unit.M, Angle.Unit.RAD));//Done orientation
+			this.featureContributionModel.addFeature("safePlane1yMax", "Y_max_plane", poseFactory.createPose(xmax, ymax, zmax, -Math.PI/2, 0, 0, Length.Unit.M, Angle.Unit.RAD));
+			this.featureContributionModel.addFeature("safePlane1zMax", "Z_max_plane", poseFactory.createPose(xmax, ymax, zmax, 0, 0, 0, Length.Unit.M, Angle.Unit.RAD));		//Done orientation	
+			model.set(FEATURES_CREATED, true);
 		}else {
-			this.featureContributionModel.updateFeature("safePlane1xMin", poseFactory.createPose(xmin, ymin, zmin, 0, Math.PI/2, 0, Length.Unit.M, Angle.Unit.RAD));
-			this.featureContributionModel.updateFeature("safePlane1yMin", poseFactory.createPose(xmin, ymin, zmin, -Math.PI/2, 0, 0, Length.Unit.M, Angle.Unit.RAD));
-			this.featureContributionModel.updateFeature("safePlane1zMin", poseFactory.createPose(xmin, ymin, zmin, 0, 0, 0, Length.Unit.M, Angle.Unit.RAD));
+			this.featureContributionModel.updateFeature("safePlane1xMin", poseFactory.createPose(xmin, ymin, zmin, 0, -Math.PI/2, 0, Length.Unit.M, Angle.Unit.RAD));
+			this.featureContributionModel.updateFeature("safePlane1yMin", poseFactory.createPose(xmin, ymin, zmin, Math.PI/2, 0, 0, Length.Unit.M, Angle.Unit.RAD));
+			this.featureContributionModel.updateFeature("safePlane1zMin", poseFactory.createPose(xmin, ymin, zmin, Math.PI, 0, 0, Length.Unit.M, Angle.Unit.RAD));
 			
-			this.featureContributionModel.updateFeature("safePlane1xMax", poseFactory.createPose(xmax, ymax, zmax, 0, -Math.PI/2, 0, Length.Unit.M, Angle.Unit.RAD));
-			this.featureContributionModel.updateFeature("safePlane1yMax", poseFactory.createPose(xmin, ymin, zmax, Math.PI/2, 0, 0, Length.Unit.M, Angle.Unit.RAD));
-			this.featureContributionModel.updateFeature("safePlane1zMax", poseFactory.createPose(xmin, ymax, zmax, Math.PI, 0, 0, Length.Unit.M, Angle.Unit.RAD));			
+			this.featureContributionModel.updateFeature("safePlane1xMax", poseFactory.createPose(xmax, ymax, zmax, 0, Math.PI/2, 0, Length.Unit.M, Angle.Unit.RAD));
+			this.featureContributionModel.updateFeature("safePlane1yMax", poseFactory.createPose(xmax, ymax, zmax, -Math.PI/2, 0, 0, Length.Unit.M, Angle.Unit.RAD));
+			this.featureContributionModel.updateFeature("safePlane1zMax", poseFactory.createPose(xmax, ymax, zmax, 0, 0, 0, Length.Unit.M, Angle.Unit.RAD));			
 		}
 			
 	}
